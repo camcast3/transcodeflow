@@ -1,0 +1,14 @@
+{
+    "name": "Go Redis Dev Container",
+    "dockerComposeFile": "../docker-compose.yaml",
+    "service": "app",
+    "workspaceFolder": "/workspace",
+    "extensions": [
+        "golang.go",
+        "redis.redis-for-vscode"
+
+    ],
+    "settings": {
+        "terminal.integrated.shell.linux": "/bin/bash"
+    }
+}

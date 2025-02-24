@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 	"time"
-	"transcode_handler/client/redis"
+	"transcode_handler/clients/redis"
 	"transcode_handler/telemetry"
 
 	"go.uber.org/zap"
@@ -19,12 +19,12 @@ type Job struct {
 	Flags          string `json:"flags"`
 }
 
-func submitJobHandler(w http.ResponseWriter, r *http.Request, metrics *telemetry.Metrics, redis *redis.DefaultRedisClient) {
+func submitJobHandler(w http.ResponseWriter, r *http.Request, metricsClient telemetry.MetricsClient, redisClient redis.RedisClient) {
 	var job Job
 
 	if err := json.NewDecoder(r.Body).Decode(&job); err != nil {
 		telemetry.Logger.Error("User error: Failed to decode job from request", zap.Any("request_body", r.Body), zap.Error(err))
-		metrics.ServerRequestCounter.WithLabelValues("failed").Inc()
+		metricsClient.IncrementServerRequestCounter("failed")
 		http.Error(w, "Invalid job format", http.StatusBadRequest)
 		return
 	}
@@ -33,7 +33,7 @@ func submitJobHandler(w http.ResponseWriter, r *http.Request, metrics *telemetry
 	jobBytes, err := json.Marshal(job)
 	if err != nil {
 		telemetry.Logger.Error("System error: Failed to marshal job into JSON string", zap.Error(err))
-		metrics.ServerRequestCounter.WithLabelValues("failed").Inc()
+		metricsClient.IncrementServerRequestCounter("failed")
 		http.Error(w, "Server error", http.StatusInternalServerError)
 		return
 	}
@@ -44,9 +44,9 @@ func submitJobHandler(w http.ResponseWriter, r *http.Request, metrics *telemetry
 	defer cancel()
 
 	// Enqueue the job into Redis
-	if err := redis.EnqueueJob(ctx, jobStr); err != nil {
+	if err := redisClient.EnqueueJob(ctx, jobStr); err != nil {
 		telemetry.Logger.Error("System error: Failed to enqueue job", zap.Error(err))
-		metrics.ServerRequestCounter.WithLabelValues("failed").Inc()
+		metricsClient.IncrementServerRequestCounter("failed")
 		http.Error(w, "Failed to enqueue job", http.StatusInternalServerError)
 		return
 	}
@@ -58,14 +58,14 @@ func submitJobHandler(w http.ResponseWriter, r *http.Request, metrics *telemetry
 		zap.String("flags", job.Flags),
 	)
 
-	metrics.QueuePushCounter.WithLabelValues("job").Inc()
-	metrics.ServerRequestCounter.WithLabelValues("success").Inc()
+	metricsClient.IncrementQueuePushCounter("job_pushed")
+	metricsClient.IncrementServerRequestCounter("success")
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func Run(metrics *telemetry.Metrics, redis *redis.DefaultRedisClient) {
+func Run(metricsClient telemetry.MetricsClient, redisClient redis.RedisClient) {
 	http.HandleFunc("/submit", func(w http.ResponseWriter, r *http.Request) {
-		submitJobHandler(w, r, metrics, redis)
+		submitJobHandler(w, r, metricsClient, redisClient)
 	})
 
 	port := os.Getenv("PORT")

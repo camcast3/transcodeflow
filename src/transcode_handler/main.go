@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"transcode_handler/client/redis"
+	"transcode_handler/clients/redis"
 	"transcode_handler/services/server"
 	"transcode_handler/telemetry"
 
@@ -51,12 +51,12 @@ func main() {
 	}
 }
 
-func initializeTelemarty() (metrics *telemetry.Metrics) {
-	metrics, err := telemetry.NewMetrics()
+func initializeTelemarty() (metrics *telemetry.DefaultMetricsCleint) {
+	metrics, err := telemetry.NewDefaultMetricsClient()
 	if err != nil {
+		telemetry.Logger.Error("System Error: Failed to initialize metrics", zap.Error(err))
 		panic("Failed to initialize metrics: " + err.Error())
 	}
-	telemetry.StartMetricsServer("9090", telemetry.Logger)
 
 	return
 }
@@ -65,7 +65,7 @@ func initializeClients() (redisClient *redis.DefaultRedisClient) {
 	redisClient, err := redis.NewDefaultRedisClient()
 	if err != nil {
 		telemetry.Logger.Error("System Error: Failed to initialize Redis client", zap.Error(err))
-		panic("Failed to initialize Redis client")
+		panic("Failed to initialize Redis client" + err.Error())
 	}
 
 	return

@@ -13,15 +13,20 @@ import (
 	"go.uber.org/zap"
 )
 
+type MetricsClient interface {
+	IncrementQueuePushCounter(submitted string)
+	IncrementServerRequestCounter(status string)
+}
+
 // Metrics holds all the Prometheus metrics for the application
-type Metrics struct {
+type DefaultMetricsCleint struct {
 	QueuePushCounter     *prometheus.CounterVec
 	ServerRequestCounter *prometheus.CounterVec
 }
 
 // NewMetrics initializes and registers Prometheus metrics
-func NewMetrics() (*Metrics, error) {
-	metrics := &Metrics{
+func NewDefaultMetricsClient() (*DefaultMetricsCleint, error) {
+	metrics := &DefaultMetricsCleint{
 		QueuePushCounter: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "transcoding_jobs_total",
@@ -48,13 +53,15 @@ func NewMetrics() (*Metrics, error) {
 		return nil, err
 	}
 
+	startMetricsServer(os.Getenv("9090"))
+
 	return metrics, nil
 }
 
 // StartMetricsServer starts an HTTP server for exposing Prometheus metrics
-func StartMetricsServer(port string, logger *zap.Logger) {
+func startMetricsServer(port string) {
 	http.Handle("/metrics", promhttp.Handler())
-	logger.Info("Starting metrics server on port " + port + "...")
+	Logger.Info("Starting metrics server on port " + port + "...")
 
 	server := &http.Server{Addr: ":" + port}
 
@@ -65,7 +72,7 @@ func StartMetricsServer(port string, logger *zap.Logger) {
 	// Run the server in a goroutine
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("Failed to start metrics server", zap.Error(err))
+			Logger.Fatal("Failed to start metrics server", zap.Error(err))
 		}
 	}()
 
@@ -78,8 +85,16 @@ func StartMetricsServer(port string, logger *zap.Logger) {
 
 	// Attempt to gracefully shutdown the server
 	if err := server.Shutdown(ctx); err != nil {
-		logger.Fatal("Failed to gracefully shutdown metrics server", zap.Error(err))
+		Logger.Fatal("Failed to gracefully shutdown metrics server", zap.Error(err))
 	}
 
-	logger.Info("Metrics server gracefully stopped")
+	Logger.Info("Metrics server gracefully stopped")
+}
+
+func (metricsClient *DefaultMetricsCleint) IncrementQueuePushCounter(submitted string) {
+	metricsClient.QueuePushCounter.WithLabelValues(submitted).Inc()
+}
+
+func (metricsClient *DefaultMetricsCleint) IncrementServerRequestCounter(status string) {
+	metricsClient.ServerRequestCounter.WithLabelValues(status).Inc()
 }

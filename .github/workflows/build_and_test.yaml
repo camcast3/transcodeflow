@@ -31,14 +31,14 @@ jobs:
 
       - name: Build the binary
         run: |
-          go build -o server ./...
-          ls -l server
+          go build -o transcode-handler ./src/transcode-handler/...
+          ls -l transcode-handler
 
       - name: Run unit tests
-        run: go test ./... -v
+        run: go test ./src/transcode-handler/... -v
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: transcode-handler-binary
-          path: src/transcode-handler
+          path: transcode-handler

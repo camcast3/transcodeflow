@@ -13,12 +13,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// Counter is an interface representing a counter.
-type Counter interface {
-	Inc()
-	Add(value float64)
-}
-
 // Metrics holds all the Prometheus metrics for the application
 type Metrics struct {
 	QueuePushCounter     *prometheus.CounterVec

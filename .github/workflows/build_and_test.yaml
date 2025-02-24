@@ -31,7 +31,8 @@ jobs:
 
       - name: Build the binary
         run: |
-          go build -o transcode-handler ./src/transcode-handler/...
+          ls -a
+          go build -o transcode-handler src/transcode_handler/main.go
           ls -l transcode-handler
 
       - name: Run unit tests

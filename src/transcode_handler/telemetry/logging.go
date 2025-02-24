@@ -1,6 +1,9 @@
 package telemetry
 
 import (
+	"log"
+	"os"
+
 	"go.uber.org/zap"
 )
 
@@ -8,6 +11,11 @@ import (
 var Logger *zap.Logger
 
 func init() {
+	// Ensure the logs directory exists
+	if err := os.MkdirAll("./logs", 0755); err != nil {
+		log.Fatalf("failed to create logs directory: %v", err)
+	}
+
 	config := zap.NewProductionConfig()
 	config.OutputPaths = []string{
 		"stdout",
@@ -23,5 +31,4 @@ func init() {
 	if err != nil {
 		panic("Failed to initialize logger: " + err.Error())
 	}
-	defer Logger.Sync() // flushes buffer, if any
 }

@@ -8,8 +8,11 @@ import (
 	"testing"
 
 	"transcode_handler/mocks"
+	"transcode_handler/model"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 // TestSubmitJobHandler tests the submitJobHandler function (or SubmitJobHandler if exported)
@@ -20,46 +23,37 @@ func TestSubmitJobHandler(t *testing.T) {
 	redisMock := mocks.NewRedisClient(t)
 
 	// Set expected behavior on the metrics mock.
-	// We expect that when a valid job is submitted, the following calls are made.
 	metricsMock.On("IncrementQueuePushCounter", "job_pushed").Return()
 	metricsMock.On("IncrementServerRequestCounter", "success").Return()
 
 	// Set expected behavior on the redis mock.
-	// We expect that EnqueueJob is called with any context and a string payload,
-	// and it should return nil error.
 	redisMock.On("EnqueueJob", mock.Anything, mock.AnythingOfType("string")).Return(nil)
 
 	// Create a sample job payload.
-	job := Job{
+	job := model.Job{
 		InputFilePath:  "input.mp4",
 		OutputFilePath: "output.mp4",
 		ContainerType:  "mp4",
-		Flags:          "-vf scale=1280:720",
+		Flags:          "--dry-run",
 	}
+
 	jobJSON, err := json.Marshal(job)
-	if err != nil {
-		t.Fatalf("failed to marshal job: %v", err)
-	}
+	require.NoError(t, err, "failed to marshal job payload")
 
 	// Create an HTTP request with the job JSON payload.
 	req, err := http.NewRequest("POST", "/submit", bytes.NewBuffer(jobJSON))
-	if err != nil {
-		t.Fatalf("failed to create request: %v", err)
-	}
+	require.NoError(t, err, "failed to create HTTP request")
 
 	// Create a ResponseRecorder to capture the response.
 	rr := httptest.NewRecorder()
 
 	// Call the handler.
-	// Note: if submitJobHandler is unexported (lowercase), this test file must be in the same package.
 	submitJobHandler(rr, req, metricsMock, redisMock)
 
-	// Validate the HTTP response.
-	if rr.Code != http.StatusAccepted {
-		t.Errorf("expected HTTP status %d but got %d", http.StatusAccepted, rr.Code)
-	}
+	// Validate the HTTP response code.
+	assert.Equal(t, http.StatusAccepted, rr.Code, "unexpected HTTP status code; response body: %s", rr.Body.String())
 
-	// Assert that the mocks' expectations were met.
+	// Assert that the expected calls on the mocks were made.
 	metricsMock.AssertExpectations(t)
 	redisMock.AssertExpectations(t)
 }

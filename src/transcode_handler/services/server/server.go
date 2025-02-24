@@ -7,20 +7,14 @@ import (
 	"os"
 	"time"
 	"transcode_handler/clients/redis"
+	"transcode_handler/model"
 	"transcode_handler/telemetry"
 
 	"go.uber.org/zap"
 )
 
-type Job struct {
-	InputFilePath  string `json:"input_file_path"`
-	OutputFilePath string `json:"output_file_path"`
-	ContainerType  string `json:"container_type"`
-	Flags          string `json:"flags"`
-}
-
 func submitJobHandler(w http.ResponseWriter, r *http.Request, metricsClient telemetry.MetricsClient, redisClient redis.RedisClient) {
-	var job Job
+	var job model.Job
 
 	if err := json.NewDecoder(r.Body).Decode(&job); err != nil {
 		telemetry.Logger.Error("User error: Failed to decode job from request", zap.Any("request_body", r.Body), zap.Error(err))
@@ -65,7 +59,12 @@ func submitJobHandler(w http.ResponseWriter, r *http.Request, metricsClient tele
 
 func Run(metricsClient telemetry.MetricsClient, redisClient redis.RedisClient) {
 	http.HandleFunc("/submit", func(w http.ResponseWriter, r *http.Request) {
-		submitJobHandler(w, r, metricsClient, redisClient)
+		switch r.Method {
+		case "POST":
+			submitJobHandler(w, r, metricsClient, redisClient)
+		default:
+			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		}
 	})
 
 	port := os.Getenv("PORT")

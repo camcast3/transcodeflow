@@ -1,0 +1,25 @@
+version: 2
+mockname: "mock{{.InterfaceName}}"
+filename: "{{.MockName}}.go"
+dir : "mocks/{{replace .PackagePath "transcode_handler/" "" 1}}"
+packages:
+  go.uber.org/zap:
+    interfaces:
+      TypesPackage:
+      RequesterVariadic:
+        config: 
+          with-expecter: False 
+  transcode_handler/redis:
+    recursive: true
+  transcode_handler/telemetry:
+    recursive: true
+
+# To generate mocks for your interfaces, run:
+#   mockery --name=Counter --dir=./telemetry --output=./telemetry/mocks --outpkg=mocks
+#   mockery --name=RedisClient --dir=./client/redis --output=./client/redis/mocks --outpkg=mocks
+#
+# Alternatively, with recursive set to true, you can run:
+#   mockery --all
+#
+# This configuration ensures that mockery scans your module recursively and outputs
+# all generated mocks into the ./mocks directory using underscore-style naming.

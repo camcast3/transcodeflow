@@ -9,14 +9,16 @@ import (
 	"go.uber.org/zap"
 )
 
-// RedisClient is a wrapper around the go-redis client
-type RedisClient struct {
+type RedisClientFactory interface {
+	Create() RedisClient
+}
+
+type DefaultRedisClientFactory struct {
 	client   *redis.Client
 	jobQueue string
 }
 
-// NewRedisClient creates a new Redis client
-func NewRedisClient() *RedisClient {
+func NewDefaultRedisClientFactory() (*DefaultRedisClientFactory, error) {
 	options := &redis.Options{
 		Addr: "redis:6379",
 	}
@@ -25,16 +27,31 @@ func NewRedisClient() *RedisClient {
 	_, err := client.Ping(context.Background()).Result()
 	if err != nil {
 		telemetry.Logger.Error("System Error: Failed to connect to Redis", zap.Error(err))
-		return nil
+		return nil, err
 	}
 
 	jobQueue := "transcode:jobs"
 
-	return &RedisClient{client: client, jobQueue: jobQueue}
+	return &DefaultRedisClientFactory{client: client, jobQueue: jobQueue}, nil
+}
+
+func (f *DefaultRedisClientFactory) Create() *DefaultRedisClient {
+	return &DefaultRedisClient{client: f.client, jobQueue: f.jobQueue}
+}
+
+type RedisClient interface {
+	EnqueueJob(ctx context.Context, job string) error
+	DequeueJob(ctx context.Context) (string, error)
+	Close() error
+}
+
+type DefaultRedisClient struct {
+	client   *redis.Client
+	jobQueue string
 }
 
 // EnqueueJob pushes a job onto the Redis jobQueue, using LPUSH.
-func (r *RedisClient) EnqueueJob(ctx context.Context, job string) error {
+func (r *DefaultRedisClient) EnqueueJob(ctx context.Context, job string) error {
 	err := r.client.LPush(ctx, r.jobQueue, job).Err()
 	if err != nil {
 		telemetry.Logger.Error("System Error: Failed to enqueue job in Redis", zap.String("queue", r.jobQueue), zap.Error(err))
@@ -45,7 +62,7 @@ func (r *RedisClient) EnqueueJob(ctx context.Context, job string) error {
 }
 
 // DequeueJob pops a job from the Redis jobQueue, using RPOP.
-func (r *RedisClient) DequeueJob(ctx context.Context) (string, error) {
+func (r *DefaultRedisClient) DequeueJob(ctx context.Context) (string, error) {
 	job, err := r.client.RPop(ctx, r.jobQueue).Result()
 	if err != nil {
 		if err == redis.Nil {
@@ -60,7 +77,7 @@ func (r *RedisClient) DequeueJob(ctx context.Context) (string, error) {
 }
 
 // Close closes the Redis client connection
-func (r *RedisClient) Close() error {
+func (r *DefaultRedisClient) Close() error {
 	err := r.client.Close()
 	if err != nil {
 		telemetry.Logger.Error("System Error: Failed to close Redis client", zap.Error(err))

@@ -52,11 +52,14 @@ func initializeTelemarty() (metrics *telemetry.Metrics) {
 		panic("Failed to initialize metrics: " + err.Error())
 	}
 	telemetry.StartMetricsServer("9090", telemetry.Logger)
+
+	return
 }
 
-func initializeClients() (redis *redis.RedisClient) {
-	redisClient := redis.NewRedisClient()
-	if redisClient == nil {
-		panic("Failed to initialize Redis client")
+func initializeClients() (redisClient *redis.RedisClient) {
+	redisClient, err := redis.NewDefaultRedisClientFactory()
+	if err != nil {
+		panic("Failed to initialize Redis client: " + err.Error())
 	}
+	return
 }

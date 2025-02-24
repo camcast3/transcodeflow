@@ -1,9 +1,11 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"os"
+	"time"
 	"transcode_handler/client/redis"
 	"transcode_handler/telemetry"
 
@@ -17,7 +19,7 @@ type Job struct {
 	Flags          string `json:"flags"`
 }
 
-func submitJobHandler(w http.ResponseWriter, r *http.Request, metrics *telemetry.Metrics, redis *redis.RedisClient) {
+func submitJobHandler(w http.ResponseWriter, r *http.Request, metrics *telemetry.Metrics, redis *redis.DefaultRedisClient) {
 	var job Job
 
 	if err := json.NewDecoder(r.Body).Decode(&job); err != nil {
@@ -27,8 +29,22 @@ func submitJobHandler(w http.ResponseWriter, r *http.Request, metrics *telemetry
 		return
 	}
 
+	// Convert job to JSON string
+	jobBytes, err := json.Marshal(job)
+	if err != nil {
+		telemetry.Logger.Error("System error: Failed to marshal job into JSON string", zap.Error(err))
+		metrics.ServerRequestCounter.WithLabelValues("failed").Inc()
+		http.Error(w, "Server error", http.StatusInternalServerError)
+		return
+	}
+	jobStr := string(jobBytes)
+
+	// Create a context for Redis operations
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	// Enqueue the job into Redis
-	if err := redis.EnqueueJob(job); err != nil {
+	if err := redis.EnqueueJob(ctx, jobStr); err != nil {
 		telemetry.Logger.Error("System error: Failed to enqueue job", zap.Error(err))
 		metrics.ServerRequestCounter.WithLabelValues("failed").Inc()
 		http.Error(w, "Failed to enqueue job", http.StatusInternalServerError)
@@ -47,7 +63,7 @@ func submitJobHandler(w http.ResponseWriter, r *http.Request, metrics *telemetry
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func Run(metrics *telemetry.Metrics, redis *redis.RedisClient) {
+func Run(metrics *telemetry.Metrics, redis *redis.DefaultRedisClient) {
 	http.HandleFunc("/submit", func(w http.ResponseWriter, r *http.Request) {
 		submitJobHandler(w, r, metrics, redis)
 	})

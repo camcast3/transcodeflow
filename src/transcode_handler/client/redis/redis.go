@@ -9,16 +9,18 @@ import (
 	"go.uber.org/zap"
 )
 
-type RedisClientFactory interface {
-	Create() RedisClient
+type RedisClient interface {
+	EnqueueJob(ctx context.Context, job string) error
+	DequeueJob(ctx context.Context) (string, error)
+	Close() error
 }
 
-type DefaultRedisClientFactory struct {
+type DefaultRedisClient struct {
 	client   *redis.Client
 	jobQueue string
 }
 
-func NewDefaultRedisClientFactory() (*DefaultRedisClientFactory, error) {
+func NewDefaultRedisClient() (*DefaultRedisClient, error) {
 	options := &redis.Options{
 		Addr: "redis:6379",
 	}
@@ -29,25 +31,9 @@ func NewDefaultRedisClientFactory() (*DefaultRedisClientFactory, error) {
 		telemetry.Logger.Error("System Error: Failed to connect to Redis", zap.Error(err))
 		return nil, err
 	}
+	telemetry.Logger.Info("Connected to Redis")
 
-	jobQueue := "transcode:jobs"
-
-	return &DefaultRedisClientFactory{client: client, jobQueue: jobQueue}, nil
-}
-
-func (f *DefaultRedisClientFactory) Create() *DefaultRedisClient {
-	return &DefaultRedisClient{client: f.client, jobQueue: f.jobQueue}
-}
-
-type RedisClient interface {
-	EnqueueJob(ctx context.Context, job string) error
-	DequeueJob(ctx context.Context) (string, error)
-	Close() error
-}
-
-type DefaultRedisClient struct {
-	client   *redis.Client
-	jobQueue string
+	return &DefaultRedisClient{client: client, jobQueue: "jobs"}, nil
 }
 
 // EnqueueJob pushes a job onto the Redis jobQueue, using LPUSH.

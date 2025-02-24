@@ -6,6 +6,8 @@ import (
 	"transcode_handler/client/redis"
 	"transcode_handler/services/server"
 	"transcode_handler/telemetry"
+
+	"go.uber.org/zap"
 )
 
 type Mode string
@@ -25,13 +27,16 @@ func main() {
 
 	fmt.Println("Detected mode:", mode)
 
+	// Initialize the Redis client
+	redis := initializeClients()
+
+	// Initialize the metrics server
 	metrics := initializeTelemarty()
-	redisClient := initializeClients()
 
 	switch mode {
 	case ServerMode:
 		// Start the metrics server
-		server.Run(metrics, redisClient)
+		server.Run(metrics, redis)
 	case TranscoderMode:
 		panic("MODE:transcoder Not Implemented Yet")
 		// transcoder.Run()  // Implementation pending
@@ -56,10 +61,12 @@ func initializeTelemarty() (metrics *telemetry.Metrics) {
 	return
 }
 
-func initializeClients() (redisClient *redis.RedisClient) {
-	redisClient, err := redis.NewDefaultRedisClientFactory()
+func initializeClients() (redisClient *redis.DefaultRedisClient) {
+	redisClient, err := redis.NewDefaultRedisClient()
 	if err != nil {
-		panic("Failed to initialize Redis client: " + err.Error())
+		telemetry.Logger.Error("System Error: Failed to initialize Redis client", zap.Error(err))
+		panic("Failed to initialize Redis client")
 	}
+
 	return
 }

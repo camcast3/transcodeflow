@@ -6,7 +6,6 @@
     "extensions": [
         "golang.go",
         "redis.redis-for-vscode"
-
     ],
     "settings": {
         "terminal.integrated.shell.linux": "/bin/bash"

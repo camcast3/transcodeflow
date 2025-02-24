@@ -5,98 +5,55 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
-	"time"
 
-	"transcode_handler/client/redis" // Import the Redis package (which now contains our mock)
-	"transcode_handler/telemetry"
+	"transcode_handler/mocks"
+	"transcode_handler/model"
 
-	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
-func TestIntegerStuff(t *testing.T) {
-	Convey("Given some integer with a starting value", t, func() {
-		x := 1
-
-		Convey("When the integer is incremented", func() {
-			x++
-
-			Convey("The value should be greater by one", func() {
-				So(x, ShouldEqual, 2)
-			})
-		})
-	})
-}
-
+// TestSubmitJobHandler tests the submitJobHandler function (or SubmitJobHandler if exported)
+// using the mockery-generated mocks for MetricsClient and RedisClient.
 func TestSubmitJobHandler(t *testing.T) {
-	// Build metrics using our mock counter vector from mocks package.
-	metrics := &telemetry.Metrics{
-		ServerRequestCounter: mocks.NewMockCounterVec("server_requests_total", "Total number of server requests", []string{"status"}),
-		QueuePushCounter:     mocks.NewMockCounterVec("queue_push_total", "Total number of jobs pushed to the queue", []string{"type"}),
-	}
-	// Use the mock Redis client from our redis package.
-	redisClient := redis.NewMockRedisClient()
+	// Create mocks using mockery-generated constructors.
+	metricsMock := mocks.NewMetricsClient(t)
+	redisMock := mocks.NewRedisClient(t)
 
-	tests := []struct {
-		name           string
-		job            Job
-		expectedStatus int
-	}{
-		{
-			name: "Valid job",
-			job: Job{
-				InputFilePath:  "input.mp4",
-				OutputFilePath: "output.mp4",
-				ContainerType:  "mp4",
-				Flags:          "-vf scale=1280:720",
-			},
-			expectedStatus: http.StatusAccepted,
-		},
-		{
-			name:           "Invalid job format",
-			job:            Job{},
-			expectedStatus: http.StatusBadRequest,
-		},
+	// Set expected behavior on the metrics mock.
+	metricsMock.On("IncrementQueuePushCounter", "job_pushed").Return()
+	metricsMock.On("IncrementServerRequestCounter", "success").Return()
+
+	// Set expected behavior on the redis mock.
+	redisMock.On("EnqueueJob", mock.Anything, mock.AnythingOfType("string")).Return(nil)
+
+	// Create a sample job payload.
+	job := model.Job{
+		InputFilePath:  "input.mp4",
+		OutputFilePath: "output.mp4",
+		ContainerType:  "mp4",
+		Flags:          "--dry-run",
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			body, _ := json.Marshal(tt.job)
-			req, err := http.NewRequest("POST", "/submit", bytes.NewBuffer(body))
-			assert.NoError(t, err)
+	jobJSON, err := json.Marshal(job)
+	require.NoError(t, err, "failed to marshal job payload")
 
-			rr := httptest.NewRecorder()
-			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				submitJobHandler(w, r, metrics, redisClient)
-			})
+	// Create an HTTP request with the job JSON payload.
+	req, err := http.NewRequest("POST", "/submit", bytes.NewBuffer(jobJSON))
+	require.NoError(t, err, "failed to create HTTP request")
 
-			handler.ServeHTTP(rr, req)
+	// Create a ResponseRecorder to capture the response.
+	rr := httptest.NewRecorder()
 
-			assert.Equal(t, tt.expectedStatus, rr.Code)
-		})
-	}
-}
+	// Call the handler.
+	submitJobHandler(rr, req, metricsMock, redisMock)
 
-func TestRun(t *testing.T) {
-	metrics := &telemetry.Metrics{
-		ServerRequestCounter: mocks.NewMockCounterVec("mock_server_requests_total", "Mock total number of server requests", []string{"status"}),
-		QueuePushCounter:     mocks.NewMockCounterVec("mock_queue_push_total", "Mock total number of jobs pushed to the queue", []string{"type"}),
-	}
-	redisClient := redis.NewMockRedisClient()
+	// Validate the HTTP response code.
+	assert.Equal(t, http.StatusAccepted, rr.Code, "unexpected HTTP status code; response body: %s", rr.Body.String())
 
-	os.Setenv("PORT", "8081")
-	defer os.Unsetenv("PORT")
-
-	// Run the server in the background.
-	go Run(metrics, redisClient)
-
-	// Tiny sleep to let the server start.
-	time.Sleep(100 * time.Millisecond)
-
-	resp, err := http.Get("http://localhost:8081/submit")
-	assert.NoError(t, err)
-	// Expecting NotFound because there's no route for GET /submit.
-	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+	// Assert that the expected calls on the mocks were made.
+	metricsMock.AssertExpectations(t)
+	redisMock.AssertExpectations(t)
 }

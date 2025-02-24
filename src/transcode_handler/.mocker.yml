@@ -1,0 +1,11 @@
+version: 3
+packages:
+  telemetry:
+    interfaces:
+      - MetricsClient
+  client/redis:
+    interfaces:
+      - RedisClient
+output: ./mocks
+case: underscore
+recursive: true

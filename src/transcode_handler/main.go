@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"transcode_handler/client/redis"
 	"transcode_handler/services/server"
 	"transcode_handler/telemetry"
 )
@@ -24,12 +25,13 @@ func main() {
 
 	fmt.Println("Detected mode:", mode)
 
+	metrics := initializeTelemarty()
+	redisClient := initializeClients()
+
 	switch mode {
 	case ServerMode:
 		// Start the metrics server
-		metrics := telemetry.NewMetrics()
-		telemetry.StartMetricsServer("9090", telemetry.Logger)
-		server.Run(metrics)
+		server.Run(metrics, redisClient)
 	case TranscoderMode:
 		panic("MODE:transcoder Not Implemented Yet")
 		// transcoder.Run()  // Implementation pending
@@ -44,7 +46,17 @@ func main() {
 	}
 }
 
-func initializeTelemarty() {
-	// Initialize metrics
+func initializeTelemarty() (metrics *telemetry.Metrics) {
+	metrics, err := telemetry.NewMetrics()
+	if err != nil {
+		panic("Failed to initialize metrics: " + err.Error())
+	}
+	telemetry.StartMetricsServer("9090", telemetry.Logger)
+}
 
+func initializeClients() (redis *redis.RedisClient) {
+	redisClient := redis.NewRedisClient()
+	if redisClient == nil {
+		panic("Failed to initialize Redis client")
+	}
 }

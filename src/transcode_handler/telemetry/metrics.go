@@ -15,54 +15,40 @@ import (
 
 // Metrics holds all the Prometheus metrics for the application
 type Metrics struct {
-	JobCounter           *prometheus.CounterVec
-	ServerRequestSucceed *prometheus.CounterVec
-	ServerRequestFailed  *prometheus.CounterVec
-	ServerTotalRequests  *prometheus.CounterVec
+	QueuePushCounter     *prometheus.CounterVec
+	ServerRequestCounter *prometheus.CounterVec
 }
 
 // NewMetrics initializes and registers Prometheus metrics
-func NewMetrics() *Metrics {
-	m := &Metrics{
-		JobCounter: prometheus.NewCounterVec(
+func NewMetrics() (*Metrics, error) {
+	metrics := &Metrics{
+		QueuePushCounter: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "transcoding_jobs_total",
-				Help: "Total number of transcoding jobs processed",
+				Help: "Total number of queue elements submitted",
 			},
-			[]string{"status"},
+			[]string{"submitted"},
 		),
-		ServerRequestSucceed: prometheus.NewCounterVec(
+		ServerRequestCounter: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "server_request_succeed_total",
-				Help: "Total number of successful server requests",
-			},
-			[]string{"endpoint"},
-		),
-		ServerRequestFailed: prometheus.NewCounterVec(
-			prometheus.CounterOpts{
-				Name: "server_request_failed_total",
-				Help: "Total number of failed server requests",
-			},
-			[]string{"endpoint"},
-		),
-		ServerTotalRequests: prometheus.NewCounterVec(
-			prometheus.CounterOpts{
-				Name: "server_request_failed_total",
+				Name: "server_request_total",
 				Help: "Total number of server requests",
 			},
-			[]string{"endpoint"},
+			[]string{"status"},
 		),
 	}
 
 	// Register metrics
-	prometheus.MustRegister(m.JobCounter)
-	prometheus.MustRegister(m.ServerRequestSucceed)
-	prometheus.MustRegister(m.ServerRequestFailed)
+	if err := prometheus.Register(metrics.QueuePushCounter); err != nil {
+		Logger.Error("Failed to register QueuePushCounter", zap.Error(err))
+		return nil, err
+	}
+	if err := prometheus.Register(metrics.ServerRequestCounter); err != nil {
+		Logger.Error("Failed to register ServerRequestCounter", zap.Error(err))
+		return nil, err
+	}
 
-	// Register metrics
-	prometheus.MustRegister(m.JobCounter)
-
-	return m
+	return metrics, nil
 }
 
 // StartMetricsServer starts an HTTP server for exposing Prometheus metrics

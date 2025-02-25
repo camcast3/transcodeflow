@@ -1,4 +1,4 @@
-name: transcodeflow_build_official
+name: transcodeflow_build_developer
 on:
   pull_request:
     branches:

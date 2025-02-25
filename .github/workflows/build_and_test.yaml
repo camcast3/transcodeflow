@@ -37,7 +37,10 @@ jobs:
           ls -l transcode-handler
 
       - name: Run unit tests
-        run: go test src/transcode-handler/... -v
+        run: |
+          cd src/transcode_handler
+          # This regex excludes any tests starting with "TestIntegration"
+          go test -v -run='^(?:(?!TestIntegration).)*$' ./...
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4

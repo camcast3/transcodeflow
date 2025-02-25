@@ -141,6 +141,4 @@ jobs:
           tags: |
             ${{ github.repository_owner }}/transcodeflow/server:${{ needs.build-binary.outputs.new_version }}
             ${{ github.repository_owner }}/transcodeflow/server:latest
-            ghcr.io/${{ github.repository_owner }}/transcodeflow/server:${{ needs.build-binary.outputs.new_version }}
-            ghcr.io/${{ github.repository_owner }}/transcodeflow/server:latest
           labels: ${{ steps.meta.outputs.labels }}

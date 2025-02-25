@@ -3,13 +3,14 @@ on:
   push:
     branches:
       -  cacarlt/get_build_pipeline_working
-    permissions:
-      contents: write
-      packages: write
 
 jobs:
   build-binary:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
     outputs:
       new_version: ${{ steps.bump-version.outputs.new_version }}    
     steps:
@@ -84,6 +85,9 @@ jobs:
 
   build-docker-server:
     needs: build-binary
+    permissions:
+      contents: write
+      packages: write
     runs-on: ubuntu-latest
     env:
       HAS_DOCKER_SECRETS: ${{ secrets.D_USER != '' && secrets.D_PAT != '' }}

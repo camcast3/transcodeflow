@@ -3,7 +3,7 @@ name: Build and Test
 on:
   push:
     branches:
-      - cacarlt/get_build_pipeline_working
+      - main
   pull_request:
     branches:
       - main

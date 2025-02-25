@@ -50,7 +50,7 @@ jobs:
 
       # Only create a new tag on pushes to main branch (not PRs)
       - name: Create Tag
-        if: github.event_name == 'push' && github.ref == 'refs/heads/cacarlt/get_build_pipeline_working'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions-ecosystem/action-push-tag@v1
         with:
           tag: ${{ steps.bump-version.outputs.new_version }}

@@ -1,8 +1,8 @@
-name: transcodeflow_build
+name: transcodeflow_build_official
 on:
-  push:
+  pull_request:
     branches:
-      -  cacarlt/get_build_pipeline_working
+      - cacarlt/main
 
 jobs:
   build-binary:
@@ -39,44 +39,6 @@ jobs:
           go build -o transcode-handler main.go
           ls -l transcode-handler
 
-      - name: Determine version bump
-        id: bump-type
-        run: |
-          # Get the commit message
-          COMMIT_MSG=$(git log -1 --pretty=%B)
-          if [[ $COMMIT_MSG == "BREAKING CHANGE:"* ]] || [[ $COMMIT_MSG == "major:"* ]]; then
-            echo "level=major" >> $GITHUB_OUTPUT
-          elif [[ $COMMIT_MSG == "feat:"* ]] || [[ $COMMIT_MSG == "minor:"* ]]; then
-            echo "level=minor" >> $GITHUB_OUTPUT
-          else
-            echo "level=patch" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Get latest tag
-        id: get-latest-tag-binary
-        uses: actions-ecosystem/action-get-latest-tag@v1
-        with:
-          fallback: v0.0.0 # Set initial version if no tags exist
-
-      - name: Bump version
-        id: bump-version
-        uses: actions-ecosystem/action-bump-semver@v1
-        with:
-          current_version: ${{ steps.get-latest-tag-binary.outputs.tag }}
-          level: ${{ steps.bump-type.outputs.level }}
-
-      # Only create a new tag on pushes to main branch (not PRs)
-      - name: Create Tag
-        if: github.ref == 'refs/heads/cacarlt/get_build_pipeline_working'
-        uses: actions-ecosystem/action-push-tag@v1
-        with:
-          tag: ${{ steps.bump-version.outputs.new_version }}
-          message: |
-            Release ${{ steps.bump-version.outputs.new_version }}
-            
-            Type: ${{ env.VERSION_LEVEL }}
-            Changes: ${{ github.event.head_commit.message }}
-        
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
@@ -128,26 +90,22 @@ jobs:
           images: |
             ${{ github.repository_owner }}/transcodeflow-server
             ghcr.io/${{ github.repository_owner }}/transcodeflow-server
-          flavor: |
-            latest=true
           labels: |
             org.opencontainers.image.authors=Cameron Carlton
             org.opencontainers.image.source="https://github.com/camcast3/transcodeflow"
-            org.opencontainers.image.description="A web server for queuing video transcoding jobs"
+            org.opencontainers.image.description="FOR DEVELOPER USAGE ONLY: A web server for queuing video transcoding jobs"
             org.opencontainers.image.licenses="MIT"
             org.opencontainers.image.version=${{ needs.build-binary.outputs.new_version }}
 
       - name: Build and push
         uses: docker/build-push-action@v6.13.0
-        if: github.actor == github.repository_owner && github.ref == 'refs/heads/cacarlt/get_build_pipeline_working'
+        if: github.actor == github.repository_owner
         with:
           context: .
           file: docker/Dockerfile.server          
           push: true
           pull: true
           tags: |
-            ${{ github.repository_owner }}/transcodeflow-server:${{ needs.build-binary.outputs.new_version }}
-            ${{ github.repository_owner }}/transcodeflow-server:latest
-            ghcr.io/${{ github.repository_owner }}/transcodeflow-server:${{ needs.build-binary.outputs.new_version }}
-            ghcr.io/${{ github.repository_owner }}/transcodeflow-server:latest
+            ${{ github.repository_owner }}/transcodeflow-server:developer
+            ghcr.io/${{ github.repository_owner }}/transcodeflow-server:developer
           labels: ${{ steps.meta.outputs.labels }}

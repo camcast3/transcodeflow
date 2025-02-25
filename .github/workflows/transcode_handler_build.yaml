@@ -1,4 +1,7 @@
-name: Build and Test
+name: transcode_handler_build
+
+permissions:
+  contents: write
 
 on:
   push:

@@ -1,0 +1,31 @@
+FROM alpine:3.21.3
+
+# Install CA certificates and any other dependencies
+RUN apk --no-cache add ca-certificates tzdata
+
+# Create a non-root user to run the application
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+# Create app directory and set ownership
+WORKDIR /app
+
+# Copy the binary from the build context
+COPY transcode-handler /app/
+
+# Set proper permissions
+RUN chmod +x /app/transcode-handler && \
+    chown -R appuser:appgroup /app
+
+# Switch to the non-root user
+USER appuser
+
+# Set standard Docker labels
+LABEL org.opencontainers.image.source="https://github.com/camcast3/transcode_handler"
+LABEL org.opencontainers.image.description="Transcode Handler Server"
+LABEL org.opencontainers.image.licenses="MIT"
+
+#Set mode and port
+ENV MODE=server
+
+# Set the entry point
+ENTRYPOINT ["/app/transcode-handler"]

@@ -34,16 +34,14 @@ jobs:
 
       - name: Build the binary
         run: |
-          cd src/transcodeflow
           go mod download
-          go build -o transcode-handler main.go
-          ls -l transcode-handler
+          go build -o transcodeflow cmd/transcodeflow/main.go
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: transcode-handler-binary
-          path: src/transcodeflow/transcode-handler
+          name: transcodeflow-binary
+          path: transcodeflow
 
   build-docker-server:
     needs: build-binary
@@ -61,7 +59,7 @@ jobs:
       - name: Download binary artifact
         uses: actions/download-artifact@v4
         with:
-          name: transcode-handler-binary
+          name: transcodeflow-binary
           path: .
 
       - name: Set up Docker Buildx

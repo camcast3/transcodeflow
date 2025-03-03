@@ -1,0 +1,8 @@
+version: 3
+dir: internal  # Target the internal directory
+output: test/mocks  # Correct output path (without leading ./)
+all: true  # Generate mocks for all interfaces
+recursive: true
+
+# go install github.com/vektra/mockery/v2@v2.52.1
+# mockery --dir=internal --output=test/mocks --all

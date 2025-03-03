@@ -9,7 +9,7 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "/workspace/src/transcode_handler/main.go",
+            "program": "/workspace/src/transcodeflow/main.go",
             "env": {
                 "MODE": "server",
                 "PORT": "8082"

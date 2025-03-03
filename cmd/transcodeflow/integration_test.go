@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 	"time"
-	"transcode_handler/model"
+	"transcodeflow/internal/model"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

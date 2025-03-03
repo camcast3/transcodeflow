@@ -3,7 +3,7 @@ package redis
 import (
 	"context"
 
-	"transcode_handler/telemetry"
+	"transcodeflow/internal/telemetry"
 
 	redis "github.com/go-redis/redis/v8"
 	"go.uber.org/zap"

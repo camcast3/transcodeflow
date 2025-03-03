@@ -34,7 +34,7 @@ jobs:
 
       - name: Build the binary
         run: |
-          cd src/transcode_handler
+          cd src/transcodeflow
           go mod download
           go build -o transcode-handler main.go
           ls -l transcode-handler
@@ -43,7 +43,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: transcode-handler-binary
-          path: src/transcode_handler/transcode-handler
+          path: src/transcodeflow/transcode-handler
 
   build-docker-server:
     needs: build-binary

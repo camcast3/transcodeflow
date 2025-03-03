@@ -52,15 +52,14 @@ curl -X POST http://localhost:8080/api/v1/jobs \
 Build the services:
 
 ```bash
-cd src/transcode_handler
-go build -o transcode_handler main.go
+go build -o transcodeflow cmd/transcodeflow/main.go
 ```
 
 Run tests:
 
 ```bash
-cd src/transcode_handler
-go test ../. -v
+go test ./internal/...
+go test ./cmd/trancodeflow/integration_test.go
 ```
 
 
@@ -85,4 +84,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Contact
 
-Project Link: [https://github.com/yourusername/transcodeflow](https://github.com/yourusername/transcodeflow)
+Project Link: [https://github.com/camcast3/transcodeflow](https://github.com/yourusername/transcodeflow)

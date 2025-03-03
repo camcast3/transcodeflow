@@ -123,30 +123,50 @@ A suggested repository layout for this transcoding pipeline:
 ```
 /workspace
 ├── cmd
-│   └── transcoding
+│   └── transcodeflow/
 │       └── main.go         // Single entry point that handles subcommands for worker, health check, and file replacement.
-├── internal
-│   ├── config
-│   │   └── config.go       // Configuration loader for services.
-│   ├── redis
-│   │   └── client.go       // Redis operations (enqueueing/dequeuing).
-│   ├── transcoder
-│   │   └── transcoder.go   // Logic for invoking ffmpeg.
-│   ├── logging
-│   │   └── logger.go       // Centralized logging setup (Grafana Loki).
-│   └── server
-│       └── server.go       // REST API/CLI interface for job submissions.
-├── pkg
-│   └── cli
-│       └── client.go       // Optional CLI client for job submissions.
+│
+├── internal/
+│   ├── api/
+│   │   ├── handler.go (HTTP handlers)
+│   │   └── server.go (server struct & methods)
+│   │
+│   ├── service/
+│   │   ├── services.go (services container)
+│   │   ├── transcode.go (transcoding business logic)
+│   │   └── worker.go (worker implementation)
+│   │
+│   ├── repository/
+│   │   └── redis/
+│   │       └── client.go (redis implementation)
+│   │
+│   └── telemetry/
+│       ├── logging.go
+│       └── metrics.go
+│
+├── pkg/
+│   ├── ffmpeg/
+│   │   └── client.go (reusable ffmpeg client)
+│   └── model/
+│       └── job.go (shared data models)
+|
 ├── docker
 │   ├── redis.conf          // Redis configuration (including ACLs).
 │   ├── loki-config.yaml    // Grafana Loki configuration.
 │   └── promtail-config.yaml// Promtail configuration.
+│   └── Dockerfile.server   // Server Dockerfile
+│   └── Dockerfile.server   // Server Dockerfile
+|
 ├── .devcontainer
 │   ├── devcontainer.json   // VS Code dev container configuration.
 │   └── Dockerfile          // Dockerfile for Go service container.
+|
+├── .github/workflows
+│   ├── transcodeflow_build_offical.yaml    // Offical Build that will create a full release tag and offical docker images
+│   └── transcodeflow_build_developer.yaml  // Developer Build that will create a release tagged "developer". Meant to be used for developer infra testings
+|
 ├── docker-compose.yaml     // Docker Compose for app, Redis, Loki, and Promtail.
 ├── go.mod                  // Go module definition.
+├── go.sum
 └── README.md               // Project overview and documentation.
 ```

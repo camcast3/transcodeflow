@@ -30,14 +30,12 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('src/transcoder/go.sum') }}
+          key: ${{ runner.os }}-go-${{ hashFiles('./go.sum') }}
 
       - name: Build the binary
         run: |
-          cd src/transcode_handler
           go mod download
-          go build -o transcode-handler main.go
-          ls -l transcode-handler
+          go build -o transcodeflow cmd/transcodeflow/main.go
 
       - name: Determine version bump
         id: bump-type
@@ -80,8 +78,8 @@ jobs:
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: transcode-handler-binary
-          path: src/transcode_handler/transcode-handler
+          name: transcodeflow-binary
+          path: transcodeflow
 
   build-docker-server:
     needs: build-binary
@@ -99,7 +97,7 @@ jobs:
       - name: Download binary artifact
         uses: actions/download-artifact@v4
         with:
-          name: transcode-handler-binary
+          name: transcodeflow-binary
           path: .
 
       - name: Set up Docker Buildx

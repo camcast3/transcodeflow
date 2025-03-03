@@ -2,7 +2,7 @@ name: transcodeflow_build_official
 on:
   push:
     branches:
-      -  cacarlt/main
+      -  main
 
 jobs:
   build-binary:

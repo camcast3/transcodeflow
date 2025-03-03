@@ -2,7 +2,7 @@ name: transcodeflow_build_developer
 on:
   pull_request:
     branches:
-      - cacarlt/main
+      - main
 
 jobs:
   build-binary:

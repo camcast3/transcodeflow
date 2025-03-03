@@ -10,10 +10,10 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 WORKDIR /app
 
 # Copy the binary from the build context
-COPY transcode-handler /app/
+COPY transcodeflow /app/
 
 # Set proper permissions
-RUN chmod +x /app/transcode-handler && \
+RUN chmod +x /app/transcodeflow && \
     chown -R appuser:appgroup /app
 
 # Switch to the non-root user
@@ -23,4 +23,4 @@ USER appuser
 ENV MODE=server
 
 # Set the entry point
-ENTRYPOINT ["/app/transcode-handler"]
+ENTRYPOINT ["/app/transcodeflow"]

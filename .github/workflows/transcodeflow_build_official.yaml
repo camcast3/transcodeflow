@@ -53,8 +53,6 @@ jobs:
       - name: Get latest tag
         id: get-latest-tag-binary
         uses: actions-ecosystem/action-get-latest-tag@v1
-        with:
-          fallback: v0.0.0 # Set initial version if no tags exist
 
       - name: Bump version
         id: bump-version
@@ -72,7 +70,7 @@ jobs:
           message: |
             Release ${{ steps.bump-version.outputs.new_version }}
             
-            Type: ${{ env.VERSION_LEVEL }}
+            Type: ${{ steps.bump-type.outputs.level }}
             Changes: ${{ github.event.head_commit.message }}
         
       - name: Upload binary artifact

@@ -82,6 +82,7 @@ func (s *Server) handleSubmitJob(w http.ResponseWriter, r *http.Request) {
 
 	var job model.Job
 
+	// Decode job from request body
 	if err := json.NewDecoder(r.Body).Decode(&job); err != nil {
 		telemetry.Logger.Error("User error: Failed to decode job from request",
 			zap.Any("request_body", r.Body), zap.Error(err))
@@ -112,14 +113,57 @@ func (s *Server) handleSubmitJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	telemetry.Logger.Info("Job submitted successfully",
-		zap.String("input_file_path", job.InputFilePath),
-		zap.String("output_file_path", job.OutputFilePath),
-		zap.String("container_type", job.ContainerType),
-		zap.String("flags", job.Flags),
-	)
+	// Log job submission
+	logJob(job)
 
 	s.services.Metrics.IncrementQueuePushCounter("job_pushed")
 	s.services.Metrics.IncrementServerRequestCounter("success")
 	w.WriteHeader(http.StatusAccepted)
+}
+
+func logJob(job model.Job) {
+	// Log job submission with appropriate fields based on job type
+	if job.IsAdvancedMode() {
+		// Advanced mode logging
+		telemetry.Logger.Info("Advanced job submitted successfully",
+			zap.String("input_file_path", job.InputFilePath),
+			zap.String("output_file_path", job.OutputFilePath),
+			zap.String("input_container_type", job.InputContainerType),
+			zap.String("output_container_type", job.OutputContainerType),
+			zap.Bool("dry_run", job.IsDryRun()),
+			zap.Bool("has_global_args", job.GlobalArguments != ""),
+			zap.Bool("has_input_args", job.InputArguments != ""),
+			zap.Bool("has_output_args", job.OutputArguments != ""),
+			zap.String("hardware_device", job.HardwareDevice),
+		)
+	} else {
+		// Simple options mode logging
+		var preset string
+		var hwAccel bool
+		var audioQuality string
+
+		if job.SimpleOptions != nil {
+			preset = string(job.SimpleOptions.QualityPreset)
+			hwAccel = job.SimpleOptions.UseHardwareAcceleration
+			audioQuality = job.SimpleOptions.AudioQuality
+		} else {
+			preset = string(model.DefaultQualityPreset)
+			hwAccel = false
+			audioQuality = "medium"
+		}
+
+		telemetry.Logger.Info("Simple job submitted successfully",
+			zap.String("input_file_path", job.InputFilePath),
+			zap.String("output_file_path", job.OutputFilePath),
+			zap.String("input_container_type", job.InputContainerType),
+			zap.String("output_container_type", job.OutputContainerType),
+			zap.Bool("dry_run", job.IsDryRun()),
+			zap.String("quality_preset", preset),
+			zap.Bool("hardware_acceleration", hwAccel),
+			zap.String("audio_quality", audioQuality),
+			zap.String("resolution", job.SimpleOptions.Resolution),
+			zap.Bool("keep_original_resolution", job.SimpleOptions.KeepOriginalResolution),
+			zap.String("hardware_device", job.HardwareDevice),
+		)
+	}
 }

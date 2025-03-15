@@ -32,6 +32,17 @@ jobs:
             ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('./go.sum') }}
 
+      # New step: Run tests on internal packages
+      - name: Test internal packages
+        run: |
+          go test -v ./internal/...
+        
+      # New step: Generate test coverage report
+      - name: Generate test coverage
+        run: |
+          go test ./internal/... -coverprofile=coverage.out
+          go tool cover -func=coverage.out
+
       - name: Build the binary
         run: |
           go mod download

@@ -1,5 +1,9 @@
 # TranscodeFlow
 
+[![Build Status](https://github.com/camcast3/transcodeflow/actions/workflows/transcodeflow_build_official.yaml/badge.svg)](https://github.com/camcast3/transcodeflow/actions/workflows/transcodeflow_build_official.yaml)
+![Code Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/camcast3/e81cf774cf842457d7216bf34e770fdc/raw/transcodeflow-coverage.json)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A distributed video transcoding service built in Go that processes video files using Jellyfin-FFmpeg.
 
 ## Features

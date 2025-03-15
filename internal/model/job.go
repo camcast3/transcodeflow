@@ -163,7 +163,7 @@ func GetFFmpegPresetArgs(preset QualityPreset, useHardwareAccel bool) string {
 		return "-c:v libaom-av1 -crf 28 -b:v 0 -cpu-used 2 -row-mt 1"
 	case PresetSlow:
 		return "-c:v libaom-av1 -crf 25 -b:v 0 -cpu-used 1 -row-mt 1"
-	case PresetUltraSlow, PresetHighQuality:
+	case PresetUltraSlow:
 		return "-c:v libaom-av1 -crf 20 -b:v 0 -cpu-used 0 -row-mt 1 -tiles 2x2"
 	default: // Balanced
 		return "-c:v libaom-av1 -crf 30 -b:v 0 -cpu-used 4 -row-mt 1"
@@ -323,6 +323,15 @@ func (j *Job) addInputFile(args []string) []string {
 }
 
 func (j *Job) addOutputArgs(args []string) []string {
+
+	// Handle direct OutputArguments if specified
+	if j.OutputArguments != "" {
+		// Split the OutputArguments string into individual arguments
+		outputArgs := strings.Fields(j.OutputArguments)
+		args = append(args, outputArgs...)
+		return args
+	}
+
 	if j.SimpleOptions != nil {
 		presetArgs := GetFFmpegPresetArgs(j.SimpleOptions.QualityPreset, j.SimpleOptions.UseHardwareAcceleration)
 		args = append(args, strings.Fields(presetArgs)...)
@@ -331,4 +340,6 @@ func (j *Job) addOutputArgs(args []string) []string {
 		// Default fallback if SimpleOptions is nil
 		args = append(args, strings.Fields(GetFFmpegPresetArgs(DefaultQualityPreset, j.SimpleOptions.UseHardwareAcceleration))...)
 	}
+
+	return args
 }

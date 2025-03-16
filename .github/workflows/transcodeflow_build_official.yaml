@@ -76,7 +76,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         with:
           auth: ${{ secrets.GIST_SECRET }}
-          gistID: YOUR_GIST_ID_HERE
+          gistID: e81cf774cf842457d7216bf34e770fdc
           filename: transcodeflow-coverage.json
           label: coverage
           message: ${{ steps.extract-coverage.outputs.percentage }}%

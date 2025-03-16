@@ -72,14 +72,14 @@ jobs:
           
       # Generate badge for README
       - name: Generate coverage badge
-        uses: schneegans/dynamic-badges-action@v1.6.0
+        uses: schneegans/dynamic-badges-action@v1.7.0
         if: github.ref == 'refs/heads/main'
         with:
           auth: ${{ secrets.GIST_SECRET }}
           gistID: e81cf774cf842457d7216bf34e770fdc
           filename: transcodeflow-coverage.json
           label: coverage
-          message: ${{ steps.extract-coverage.outputs.percentage }}%
+          message: ${{ steps.extract-coverage.outputs.percentage }}
           color: ${{ steps.extract-coverage.outputs.percentage > 60 && 'green' || steps.extract-coverage.outputs.percentage > 50 && 'yellow' || 'red' }}
           
       # Continue with build even if coverage is low (but we've warned about it)

@@ -32,16 +32,61 @@ jobs:
             ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('./go.sum') }}
 
-      # New step: Run tests on internal packages
+      # Run tests on internal packages
       - name: Test internal packages
         run: |
           go test -v ./internal/...
         
-      # New step: Generate test coverage report
+      # Generate test coverage report
       - name: Generate test coverage
         run: |
           go test ./internal/... -coverprofile=coverage.out
           go tool cover -func=coverage.out
+      
+      # Extract coverage percentage
+      - name: Extract coverage percentage
+        id: extract-coverage
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print substr($3, 1, length($3)-1)}')
+          echo "Coverage: $COVERAGE%"
+          echo "percentage=$COVERAGE" >> $GITHUB_OUTPUT
+          
+      # Check if coverage meets threshold
+      - name: Check coverage threshold
+        id: coverage-check
+        run: |
+          COVERAGE=${{ steps.extract-coverage.outputs.percentage }}
+          THRESHOLD=75
+          
+          echo "Current coverage: $COVERAGE%"
+          echo "Required threshold: $THRESHOLD%"
+          
+          # Use bc for floating-point comparison
+          if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
+            echo "⚠️ Code coverage ($COVERAGE%) is below the threshold ($THRESHOLD%)"
+            echo "status=below" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Code coverage ($COVERAGE%) meets or exceeds the threshold ($THRESHOLD%)"
+            echo "status=pass" >> $GITHUB_OUTPUT
+          fi
+          
+      # Generate badge for README
+      - name: Generate coverage badge
+        uses: schneegans/dynamic-badges-action@v1.6.0
+        if: github.ref == 'refs/heads/main'
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: YOUR_GIST_ID_HERE
+          filename: transcodeflow-coverage.json
+          label: coverage
+          message: ${{ steps.extract-coverage.outputs.percentage }}%
+          color: ${{ steps.extract-coverage.outputs.percentage > 60 && 'green' || steps.extract-coverage.outputs.percentage > 50 && 'yellow' || 'red' }}
+          
+      # Continue with build even if coverage is low (but we've warned about it)
+      - name: Build the binary
+        run: |
+          go mod download
+          go build -o transcodeflow cmd/transcodeflow/main.go
 
       - name: Build the binary
         run: |

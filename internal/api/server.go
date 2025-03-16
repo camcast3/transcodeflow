@@ -84,10 +84,33 @@ func (s *Server) handleSubmitJob(w http.ResponseWriter, r *http.Request) {
 
 	// Decode job from request body
 	if err := json.NewDecoder(r.Body).Decode(&job); err != nil {
-		telemetry.Logger.Error("User error: Failed to decode job from request",
-			zap.Any("request_body", r.Body), zap.Error(err))
+		// Check if the error is due to a type mismatch (e.g., complex128)
+		if _, ok := err.(*json.UnmarshalTypeError); ok {
+			telemetry.Logger.Error("System error: Failed to decode job from request due to type mismatch",
+				zap.Any("request_body", r.Body), zap.Error(err))
+			s.services.Metrics.IncrementServerRequestCounter("failed")
+			http.Error(w, "Server error", http.StatusInternalServerError)
+		} else if _, ok := err.(*json.UnmarshalTypeError); ok {
+			telemetry.Logger.Error("System error: Failed to decode job from request due to type mismatch",
+				zap.Any("request_body", r.Body), zap.Error(err))
+			s.services.Metrics.IncrementServerRequestCounter("failed")
+			http.Error(w, "Server error", http.StatusInternalServerError)
+		} else {
+			telemetry.Logger.Error("User error: Failed to decode job from request",
+				zap.Any("request_body", r.Body), zap.Error(err))
+			s.services.Metrics.IncrementServerRequestCounter("failed")
+			http.Error(w, "Invalid job format", http.StatusBadRequest)
+		}
+		return
+	}
+
+	// Validate required fields
+	if job.InputFilePath == "" || job.OutputFilePath == "" {
+		telemetry.Logger.Error("User error: Missing required job fields",
+			zap.String("input_file_path", job.InputFilePath),
+			zap.String("output_file_path", job.OutputFilePath))
 		s.services.Metrics.IncrementServerRequestCounter("failed")
-		http.Error(w, "Invalid job format", http.StatusBadRequest)
+		http.Error(w, "Missing required job fields", http.StatusBadRequest)
 		return
 	}
 

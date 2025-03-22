@@ -57,6 +57,12 @@ func (w *WorkerService) getJobs(ctx context.Context, id int) {
 			return
 		}
 		telemetry.Logger.Info("Pushed job result", zap.Any("worker_ID", id))
+
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
 	}
 
 }

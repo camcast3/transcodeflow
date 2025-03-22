@@ -11,6 +11,7 @@ import (
 	"transcodeflow/internal/repository/redis"
 	"transcodeflow/internal/service"
 	"transcodeflow/internal/telemetry"
+	"transcodeflow/internal/worker"
 
 	"go.uber.org/zap"
 )
@@ -53,7 +54,11 @@ func main() {
 		if err := server.Start(ctx); err != nil {
 			telemetry.Logger.Fatal("Server error", zap.Error(err))
 		}
-
+	case "worker":
+		workerSvc := worker.NewWorkerService(svc)
+		if err := workerSvc.Start(ctx); err != nil {
+			telemetry.Logger.Fatal("Worker error", zap.Error(err))
+		}
 	default:
 		telemetry.Logger.Fatal("Unknown application mode", zap.String("mode", mode))
 	}

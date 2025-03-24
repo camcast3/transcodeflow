@@ -134,5 +134,5 @@ func TestWorkerDequeue(t *testing.T) {
 	defer os.Unsetenv("APP_MODE")
 
 	go main()
-	time.Sleep(time.Second * 15)
+	time.Sleep(time.Second * 10)
 }

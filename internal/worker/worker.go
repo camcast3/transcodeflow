@@ -109,6 +109,6 @@ func (w *WorkerService) doTranscode(jobStr string) error {
 		return err
 	}
 
-	fmt.Println(stdout)
+	fmt.Println(string(stdout))
 	return nil
 }

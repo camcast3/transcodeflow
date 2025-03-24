@@ -2,93 +2,129 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"os"
 	"testing"
 	"time"
+	"transcodeflow/internal/api"
 	"transcodeflow/internal/model"
+	"transcodeflow/internal/repository/redis"
+	"transcodeflow/internal/service"
+	"transcodeflow/internal/telemetry"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
-func TestIntegrationServerMode_Submit_GetRequest(t *testing.T) {
-	// Set the environment variables required by main().
-	// MODE must be set to "server" and we set PORT to avoid conflicts.
-	os.Setenv("MODE", "server")
-	os.Setenv("PORT", "8082")
-	defer os.Unsetenv("MODE")
+func TestServerIntegration(t *testing.T) {
+	// Skip in CI environments
+	if os.Getenv("CI") == "true" {
+		t.Skip("Skipping integration test in CI environment")
+	}
+
+	// Set environment variables for test
+	os.Setenv("APP_MODE", "server")
+	os.Setenv("PORT", "8082") // Use a different port for testing
+	defer os.Unsetenv("APP_MODE")
 	defer os.Unsetenv("PORT")
 
-	// Start the application in a separate goroutine.
-	// main() will block because server.Run listens indefinitely,
-	// so running it in a goroutine allows the test to continue.
-	go main()
-
-	// Give the server some time to start up.
-	time.Sleep(5 * time.Second)
-
-	// In our server, GET requests to /submit are now handled.
-	resp, err := http.Get("http://localhost:8082/submit")
+	// Initialize test dependencies
+	metrics, err := telemetry.NewDefaultMetricsClient()
 	if err != nil {
-		t.Fatalf("HTTP GET request failed: %v", err)
+		t.Fatalf("Failed to initialize metrics: %v", err)
 	}
-	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	// Initialize Redis client
+	redisClient, err := redis.NewDefaultRedisClient()
 	if err != nil {
-		t.Fatalf("failed to read response body: %v", err)
+		t.Fatalf("Failed to initialize Redis client: %v", err)
 	}
+	defer redisClient.Close()
 
-	// Since GET is now allowed on /submit, we expect a successful response status.
-	if resp.StatusCode != http.StatusMethodNotAllowed {
-		t.Fatalf("expected status 200, got %d. Response body: %s", resp.StatusCode, string(body))
-	}
+	// Create services container
+	svc := service.NewServices(metrics, redisClient)
+
+	// Create context with cancellation for graceful shutdown
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Start server in a goroutine
+	go func() {
+		if err := runServer(ctx, svc); err != nil {
+			telemetry.Logger.Error("Server error", zap.Error(err))
+		}
+	}()
+
+	// Wait for server to start
+	time.Sleep(1 * time.Second)
+
+	// Test server endpoints
+	t.Run("SubmitJob", testSubmitJob)
+	t.Run("MethodNotAllowed", testMethodNotAllowed)
+	t.Run("InvalidJobFormat", testInvalidJobFormat)
+	t.Run("MissingRequiredFields", testMissingRequiredFields)
 }
 
-func TestIntegrationServerMode_Submit_PostRequest(t *testing.T) {
-	// Set the environment variables required by main().
-	os.Setenv("MODE", "server")
-	os.Setenv("PORT", "8082")
-	defer os.Unsetenv("MODE")
-	defer os.Unsetenv("PORT")
+func runServer(ctx context.Context, svc *service.Services) error {
+	server := api.NewServer(svc)
+	return server.Start(ctx)
+}
 
-	// Start the application in a separate goroutine.
-	go main()
-
-	// Allow time for the server to start.
-	time.Sleep(5 * time.Second)
-
-	// Create a sample job payload using the public model.
+func testSubmitJob(t *testing.T) {
 	job := model.Job{
-		InputFilePath:  "input.mp4",
-		OutputFilePath: "output.mp4",
-		ContainerType:  "mp4",
-		Flags:          "--dry-run",
+		InputFilePath:  "/path/to/input.mp4",
+		OutputFilePath: "/path/to/output.mkv",
+		SimpleOptions: &model.SimpleOptions{
+			QualityPreset:           model.PresetBalanced,
+			UseHardwareAcceleration: true,
+			AudioQuality:            "medium",
+		},
 	}
 
-	payload, err := json.Marshal(job)
-	require.NoError(t, err, "failed to marshal job payload")
-
-	// Create an HTTP request with the JSON payload.
-	req, err := http.NewRequest("POST", "http://localhost:8082/submit", bytes.NewBuffer(payload))
-	require.NoError(t, err, "failed to create HTTP request")
-	req.Header.Set("Content-Type", "application/json")
-
-	// Use an HTTP client to send the request.
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	require.NoError(t, err, "failed to perform POST request")
+	jobBytes, _ := json.Marshal(job)
+	resp, err := http.Post("http://localhost:8082/submit", "application/json", bytes.NewBuffer(jobBytes))
+	if err != nil {
+		t.Fatalf("Failed to submit job: %v", err)
+	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
-	require.NoError(t, err, "failed to read response body")
+	assert.Equal(t, http.StatusAccepted, resp.StatusCode, "Expected status accepted")
+}
 
-	// Validate the HTTP response code.
-	expectedStatus := http.StatusAccepted
-	assert.Equal(t, expectedStatus, resp.StatusCode,
-		"unexpected HTTP status code; expected %d, got %d. Response body: %s",
-		expectedStatus, resp.StatusCode, string(respBody))
+func testMethodNotAllowed(t *testing.T) {
+	resp, err := http.Get("http://localhost:8082/submit")
+	if err != nil {
+		t.Fatalf("Failed to make GET request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusMethodNotAllowed, resp.StatusCode, "Expected method not allowed")
+}
+
+func testInvalidJobFormat(t *testing.T) {
+	invalidJSON := []byte(`{"invalidField": true, "brokenJson":}`)
+	resp, err := http.Post("http://localhost:8082/submit", "application/json", bytes.NewBuffer(invalidJSON))
+	if err != nil {
+		t.Fatalf("Failed to submit invalid JSON: %v", err)
+	}
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "Expected bad request for invalid JSON")
+}
+
+func testMissingRequiredFields(t *testing.T) {
+	job := model.Job{
+		// Missing required fields
+	}
+
+	jobBytes, _ := json.Marshal(job)
+	resp, err := http.Post("http://localhost:8082/submit", "application/json", bytes.NewBuffer(jobBytes))
+	if err != nil {
+		t.Fatalf("Failed to submit job with missing fields: %v", err)
+	}
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "Expected bad request for missing fields")
 }

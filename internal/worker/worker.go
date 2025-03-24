@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"sync"
 	"transcodeflow/internal/model"
 	"transcodeflow/internal/service"
 	"transcodeflow/internal/telemetry"
@@ -12,7 +13,9 @@ import (
 	"go.uber.org/zap"
 )
 
-const MAX_PARALLELIZATION = 5 //default this until config implemented
+var wg sync.WaitGroup
+
+const MAX_PARALLELIZATION = 1 //default this until config implemented
 
 type WorkerService struct {
 	*service.Services
@@ -30,8 +33,21 @@ func NewWorkerService(svc *service.Services) *WorkerService {
 
 func (w *WorkerService) Start(ctx context.Context) error {
 	for i := range MAX_PARALLELIZATION {
+		wg.Add(1)
 		go w.getJobs(ctx, i)
 	}
+
+	go func() {
+		for err := range w.errorChannel {
+			telemetry.Logger.Error(fmt.Sprintf("Error: %e", err))
+		}
+	}()
+	go func() {
+		wg.Wait()
+		close(w.errorChannel)
+	}()
+
+	wg.Wait()
 	return nil
 }
 
@@ -40,6 +56,7 @@ func (w *WorkerService) getJobs(ctx context.Context, id int) {
 		jobStr, err := w.Services.Redis.DequeueJob(ctx)
 		if err != nil {
 			w.errorChannel <- JobError{jobStr, err}
+			wg.Done()
 			return
 		}
 		telemetry.Logger.Info("Dequeued job", zap.Any("worker_ID", id))
@@ -47,6 +64,7 @@ func (w *WorkerService) getJobs(ctx context.Context, id int) {
 		err = w.doTranscode(jobStr)
 		if err != nil {
 			w.errorChannel <- JobError{jobStr, err}
+			wg.Done()
 			return
 		}
 		telemetry.Logger.Info("Finished job", zap.Any("worker_ID", id))
@@ -54,12 +72,14 @@ func (w *WorkerService) getJobs(ctx context.Context, id int) {
 		err = w.pushResult(jobStr)
 		if err != nil {
 			w.errorChannel <- JobError{jobStr, err}
+			wg.Done()
 			return
 		}
 		telemetry.Logger.Info("Pushed job result", zap.Any("worker_ID", id))
 
 		select {
 		case <-ctx.Done():
+			wg.Done()
 			return
 		default:
 		}
@@ -77,8 +97,8 @@ func (w *WorkerService) doTranscode(jobStr string) error {
 	//panic("DoTranscode not implemented")
 	//Temporarily just print stuff for testing
 
-	var job *model.Job
-	err := json.Unmarshal([]byte(jobStr), job)
+	var job model.Job
+	err := json.Unmarshal([]byte(jobStr), &job)
 	if err != nil {
 		return err
 	}

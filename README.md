@@ -41,13 +41,44 @@ go mod download
 Submit a transcoding job:
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/jobs \
+curl -X POST http://localhost:8082/submit \
   -H "Content-Type: application/json" \
   -d '{
-    "input_path": "/path/to/videos",
-    "output_path": "/path/to/output",
-    "container_type": "mp4",
-    "codec": "av1"
+    "input_file_path": "/path/to/input.mp4",
+    "output_file_path": "/path/to/output.mp4",
+    "output_container_type": "mp4",
+    "dry_run": "true"
+  }'
+```
+
+For advanced usage with custom encoding arguments:
+```bash
+curl -X POST http://localhost:8082/submit \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input_file_path": "/path/to/input.mkv",
+    "output_file_path": "/path/to/output.mp4",
+    "output_container_type": "mp4",
+    "global_arguments": "-hide_banner -y",
+    "output_arguments": "-c:v libx264 -crf 23"
+  }'
+```
+
+For simple options (novice users):
+
+```bash
+curl -X POST http://localhost:8082/submit \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input_file_path": "/path/to/input.mp4",
+    "output_file_path": "/path/to/output.mp4",
+    "output_container_type": "mp4",
+    "simple_options": {
+      "quality_preset": "quality",
+      "resolution": "1080p",
+      "use_hardware_acceleration": true,
+      "audio_quality": "high"
+    }
   }'
 ```
 

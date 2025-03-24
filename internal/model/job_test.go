@@ -416,6 +416,18 @@ func TestGetFFmpegCommand(t *testing.T) {
 		wantContains []string
 	}{
 		{
+			name: "Job with no simple options",
+			job: Job{
+				InputFilePath:  "/input.mp4",
+				OutputFilePath: "/output.mp4",
+			},
+			wantContains: []string{
+				"-y", "-hide_banner",
+				"-i", "/input.mp4",
+				"/output.mp4",
+			},
+		},
+		{
 			name: "Simple job with hardware",
 			job: Job{
 				InputFilePath:  "/input.mp4",

@@ -338,7 +338,7 @@ func (j *Job) addOutputArgs(args []string) []string {
 		args = append(args, "-c:a", "libopus", "-b:a", "256k")
 	} else {
 		// Default fallback if SimpleOptions is nil
-		args = append(args, strings.Fields(GetFFmpegPresetArgs(DefaultQualityPreset, j.SimpleOptions.UseHardwareAcceleration))...)
+		args = append(args, strings.Fields(GetFFmpegPresetArgs(DefaultQualityPreset, false))...)
 	}
 
 	return args

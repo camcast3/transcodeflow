@@ -55,7 +55,7 @@ func main() {
 			telemetry.Logger.Fatal("Server error", zap.Error(err))
 		}
 	case "worker":
-		workerSvc := worker.NewWorkerService(svc)
+		workerSvc := worker.NewWorkerService(svc, 4, nil, nil)
 		if err := workerSvc.Start(ctx); err != nil {
 			telemetry.Logger.Fatal("Worker error", zap.Error(err))
 		}

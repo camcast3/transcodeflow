@@ -48,6 +48,10 @@ func NewWorkerService(svc *service.Services, maxParallelization int, workFunc Jo
 		handler = &DefaultErrorHandler{}
 	}
 
+	if workFunc == nil {
+		workFunc = FakeDoTranscode
+	}
+
 	return &WorkerService{
 		svc,
 		make(chan error, maxParallelization),

@@ -13,91 +13,108 @@ import (
 	"go.uber.org/zap"
 )
 
-var wg sync.WaitGroup
+// var wg sync.WaitGroup
+type JobTask func(model.Job) (string, error)
 
-const MAX_PARALLELIZATION = 4 //default this until config implemented
+type InternalErrorHandler interface {
+	HandleError(err error)
+}
+
+type DefaultErrorHandler struct{}
+
+func (eh *DefaultErrorHandler) HandleError(err error) {
+	//For now just log errors we can't push a result for
+	telemetry.Logger.Error(fmt.Sprintf("Error: %e", err))
+}
 
 type WorkerService struct {
 	*service.Services
-	errorChannel chan error
+	errorChannel       chan error
+	MaxParallelization int
+	WorkFunc           JobTask
+	sync.WaitGroup
+	InternalErrorHandler
 }
 
+// placeholder until we're sure how we want to report the error
+// for a specific job which may be malformed
 type JobError struct {
 	JobString string
 	error
 }
 
-func NewWorkerService(svc *service.Services) *WorkerService {
-	return &WorkerService{svc, make(chan error, MAX_PARALLELIZATION)}
+func NewWorkerService(svc *service.Services, maxParallelization int, workFunc JobTask, handler InternalErrorHandler) *WorkerService {
+	if handler == nil {
+		handler = &DefaultErrorHandler{}
+	}
+
+	return &WorkerService{
+		svc,
+		make(chan error, maxParallelization),
+		maxParallelization,
+		workFunc,
+		sync.WaitGroup{},
+		handler,
+	}
 }
 
 func (w *WorkerService) Start(ctx context.Context) error {
-	for i := range MAX_PARALLELIZATION {
-		wg.Add(1)
+	for i := range w.MaxParallelization {
+		w.Add(1)
 		go w.getJobs(ctx, i)
 	}
 
 	go func() {
 		for err := range w.errorChannel {
-			telemetry.Logger.Error(fmt.Sprintf("Error: %e", err))
+			w.HandleError(err)
 		}
 	}()
+
 	go func() {
-		wg.Wait()
+		w.Wait()
 		close(w.errorChannel)
 	}()
 
-	wg.Wait()
+	w.Wait()
 	return nil
 }
 
 func (w *WorkerService) getJobs(ctx context.Context, id int) {
+	//TODO restart failed worker goroutines?
+	defer w.Done()
 	for {
-		jobStr, err := w.Services.Redis.DequeueJob(ctx)
-		if err != nil {
-			w.errorChannel <- JobError{jobStr, err}
-			wg.Done()
-			return
-		}
-		telemetry.Logger.Info("Dequeued job", zap.Any("worker_ID", id))
-
-		var job model.Job
-		err = json.Unmarshal([]byte(jobStr), &job)
-		if err != nil {
-			w.errorChannel <- JobError{jobStr, err}
-			wg.Done()
-			return
-		}
-
-		output, err := w.doTranscode(job)
-		if err != nil {
-			w.errorChannel <- JobError{jobStr, err}
-			wg.Done()
-			return
-		}
-		telemetry.Logger.Info("Finished job", zap.Any("worker_ID", id))
-
-		err = w.pushResult(ctx, job, output, err)
-		if err != nil {
-			w.errorChannel <- JobError{jobStr, err}
-			wg.Done()
-			return
-		}
-		telemetry.Logger.Info("Pushed job result", zap.Any("worker_ID", id))
-
 		select {
 		case <-ctx.Done():
-			wg.Done()
 			return
 		default:
+			jobStr, err := w.Services.Redis.DequeueJob(ctx)
+			if err != nil {
+				w.errorChannel <- JobError{jobStr, err}
+				return
+			}
+			telemetry.Logger.Info("Dequeued job", zap.Any("worker_ID", id))
+
+			var job model.Job
+			err = json.Unmarshal([]byte(jobStr), &job)
+			if err != nil {
+				w.errorChannel <- JobError{jobStr, err}
+				return
+			}
+
+			output, err := w.WorkFunc(job)
+			telemetry.Logger.Info("Finished job", zap.Any("worker_ID", id))
+
+			err = w.pushResult(ctx, job, output, err)
+			if err != nil {
+				w.errorChannel <- JobError{jobStr, err}
+				return
+			}
+			telemetry.Logger.Info("Pushed job result", zap.Any("worker_ID", id))
 		}
 	}
-
 }
 
 func (w *WorkerService) pushResult(ctx context.Context, completedJob model.Job, stdout string, err error) error {
-	//panic("pushResult not implemented")
-
 	resultBytes, err := json.Marshal(model.JobResult{Job: completedJob, Output: stdout, Error: err})
 	if err != nil {
 		return err
@@ -112,8 +129,7 @@ func (w *WorkerService) pushResult(ctx context.Context, completedJob model.Job, 
 	return nil
 }
 
-func (w *WorkerService) doTranscode(job model.Job) (string, error) {
-	//panic("DoTranscode not implemented")
+func FakeDoTranscode(job model.Job) (string, error) {
 	//Temporarily just print stuff for testing
 
 	args := job.GetFFmpegCommand()

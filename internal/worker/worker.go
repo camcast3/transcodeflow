@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
-	"sync"
+	"time"
 	"transcodeflow/internal/model"
 	"transcodeflow/internal/service"
 	"transcodeflow/internal/telemetry"
@@ -13,7 +13,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// var wg sync.WaitGroup
 type JobTask func(model.Job) (string, error)
 
 type InternalErrorHandler interface {
@@ -29,18 +28,17 @@ func (eh *DefaultErrorHandler) HandleError(err error) {
 
 type WorkerService struct {
 	*service.Services
-	errorChannel       chan error
+	resultChannel      chan JobResult
 	MaxParallelization int
 	WorkFunc           JobTask
-	sync.WaitGroup
 	InternalErrorHandler
 }
 
-// placeholder until we're sure how we want to report the error
+// placeholder until we're sure how we want to report the outcome
 // for a specific job which may be malformed
-type JobError struct {
+type JobResult struct {
 	JobString string
-	error
+	Err       error
 }
 
 func NewWorkerService(svc *service.Services, maxParallelization int, workFunc JobTask, handler InternalErrorHandler) *WorkerService {
@@ -54,68 +52,79 @@ func NewWorkerService(svc *service.Services, maxParallelization int, workFunc Jo
 
 	return &WorkerService{
 		svc,
-		make(chan error, maxParallelization),
+		make(chan JobResult, maxParallelization),
 		maxParallelization,
 		workFunc,
-		sync.WaitGroup{},
 		handler,
 	}
 }
 
 func (w *WorkerService) Start(ctx context.Context) error {
-	for i := range w.MaxParallelization {
-		w.Add(1)
-		go w.getJobs(ctx, i)
-	}
-
-	go func() {
-		for err := range w.errorChannel {
-			w.HandleError(err)
+	currentWorkers := 0
+	workerId := 0 //just increment an int for now; better solution later if necessary
+	/*	for i := range w.MaxParallelization {
+			w.Add(1)
+			go w.getJobs(ctx, i)
 		}
-	}()
 
-	go func() {
-		w.Wait()
-		close(w.errorChannel)
-	}()
+		go func() {
+			for err := range w.resultChannel {
+				w.HandleError(err)
+			}
+		}()
 
-	w.Wait()
-	return nil
-}
-
-func (w *WorkerService) getJobs(ctx context.Context, id int) {
-	//TODO restart failed worker goroutines?
-	defer w.Done()
+		go func() {
+			w.Wait()
+			close(w.resultChannel)
+		}()
+	*/
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			//add more graceful cleanup here
+			return ctx.Err()
+		case result := <-w.resultChannel:
+			currentWorkers--
+			if result.Err != nil {
+				w.HandleError(result.Err) //todo: handle decrementing maxParallel if we see the 'too many parallel' error
+			}
 		default:
-			jobStr, err := w.Services.Redis.DequeueJob(ctx)
-			if err != nil {
-				w.errorChannel <- JobError{jobStr, err}
-				return
+			if currentWorkers < w.MaxParallelization {
+				currentWorkers++
+				//start new job
+				go w.getJobs(ctx, workerId) //give distinct contexts later if necessary
+				workerId++
 			}
-			telemetry.Logger.Info("Dequeued job", zap.Any("worker_ID", id))
-
-			var job model.Job
-			err = json.Unmarshal([]byte(jobStr), &job)
-			if err != nil {
-				w.errorChannel <- JobError{jobStr, err}
-				return
-			}
-
-			output, err := w.WorkFunc(job)
-			telemetry.Logger.Info("Finished job", zap.Any("worker_ID", id))
-
-			err = w.pushResult(ctx, job, output, err)
-			if err != nil {
-				w.errorChannel <- JobError{jobStr, err}
-				return
-			}
-			telemetry.Logger.Info("Pushed job result", zap.Any("worker_ID", id))
+			time.Sleep(time.Second * 1) //make sleeptime configurable for test
 		}
 	}
+}
+
+func (w *WorkerService) getJobs(ctx context.Context, id int) {
+	jobStr, err := w.Services.Redis.DequeueJob(ctx)
+	if err != nil {
+		w.resultChannel <- JobResult{jobStr, err}
+		return
+	}
+	telemetry.Logger.Info("Dequeued job", zap.Any("worker_ID", id))
+
+	var job model.Job
+	err = json.Unmarshal([]byte(jobStr), &job)
+	if err != nil {
+		w.resultChannel <- JobResult{jobStr, err}
+		return
+	}
+
+	output, err := w.WorkFunc(job)
+	telemetry.Logger.Info("Finished job", zap.Any("worker_ID", id))
+
+	err = w.pushResult(ctx, job, output, err)
+	if err != nil {
+		w.resultChannel <- JobResult{jobStr, err}
+		return
+	}
+	telemetry.Logger.Info("Pushed job result", zap.Any("worker_ID", id))
+	w.resultChannel <- JobResult{jobStr, nil}
 }
 
 func (w *WorkerService) pushResult(ctx context.Context, completedJob model.Job, stdout string, err error) error {

@@ -67,7 +67,6 @@ func TestProcessJobs(t *testing.T) {
 	redisMock.On("DequeueJob", ctx).Return("", errors.New("cancelled")).Run(func(args mock.Arguments) { <-ctx.Done() })
 
 	workerSvc.Start(ctx)
-	workerSvc.Wait()
 
 	for _, r := range results {
 		redisMock.AssertCalled(t, "EnqueueJobResult", mock.Anything, r)
@@ -118,7 +117,6 @@ func TestJobsTaskFails(t *testing.T) {
 	redisMock.On("DequeueJob", ctx).Return("", errors.New("cancelled")).Run(func(args mock.Arguments) { <-ctx.Done() })
 
 	workerSvc.Start(ctx)
-	workerSvc.Wait()
 
 	for _, r := range results {
 		redisMock.AssertCalled(t, "EnqueueJobResult", mock.Anything, r)
@@ -161,8 +159,7 @@ func TestInternalWorkerError(t *testing.T) {
 	redisMock.On("DequeueJob", ctx).Return("", errors.New("cancelled")).Run(func(args mock.Arguments) { <-ctx.Done() })
 
 	workerSvc.Start(ctx)
-	workerSvc.Wait()
 
 	redisMock.AssertCalled(t, "EnqueueJobResult", mock.Anything, string(result))
-	errorHandlerMock.AssertCalled(t, "HandleError", JobError{"", errors.New("failed dequeue")})
+	errorHandlerMock.AssertCalled(t, "HandleError", errors.New("failed dequeue"))
 }

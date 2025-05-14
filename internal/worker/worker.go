@@ -47,7 +47,7 @@ func NewWorkerService(svc *service.Services, maxParallelization int, workFunc Jo
 	}
 
 	if workFunc == nil {
-		workFunc = FakeDoTranscode
+		workFunc = DoTranscode
 	}
 
 	return &WorkerService{
@@ -62,22 +62,6 @@ func NewWorkerService(svc *service.Services, maxParallelization int, workFunc Jo
 func (w *WorkerService) Start(ctx context.Context) error {
 	currentWorkers := 0
 	workerId := 0 //just increment an int for now; better solution later if necessary
-	/*	for i := range w.MaxParallelization {
-			w.Add(1)
-			go w.getJobs(ctx, i)
-		}
-
-		go func() {
-			for err := range w.resultChannel {
-				w.HandleError(err)
-			}
-		}()
-
-		go func() {
-			w.Wait()
-			close(w.resultChannel)
-		}()
-	*/
 	for {
 		select {
 		case <-ctx.Done():
@@ -140,6 +124,18 @@ func (w *WorkerService) pushResult(ctx context.Context, completedJob model.Job, 
 
 	telemetry.Logger.Info("Pushed job result", zap.Any("job_string", completedJob))
 	return nil
+}
+
+func DoTranscode(job model.Job) (string, error) {
+	args := job.GetFFmpegCommand()
+	cmd := exec.Command("ffmpeg", args...)
+	stdout, err := cmd.Output()
+	if err != nil {
+		return string(stdout), err
+	}
+
+	fmt.Println(string(stdout))
+	return string(stdout), nil
 }
 
 func FakeDoTranscode(job model.Job) (string, error) {

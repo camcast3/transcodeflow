@@ -2,7 +2,7 @@
 FROM golang:1.23.6-bookworm
 
 # Install Redis CLI tools (optional, can be helpful for testing)
-RUN apt update && apt -y install git redis-tools
+RUN apt update && apt -y install git redis-tools ffmpeg
 
 # Set the working directory inside the container
 WORKDIR /workspace

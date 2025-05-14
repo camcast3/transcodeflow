@@ -1,7 +1,7 @@
 FROM alpine:3.21.3
 
 # Install CA certificates and any other dependencies
-RUN apk --no-cache add ca-certificates tzdata
+RUN apk --no-cache add ca-certificates tzdata ffmpeg
 
 # Create a non-root user to run the application
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup

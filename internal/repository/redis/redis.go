@@ -62,7 +62,6 @@ func (r *DefaultRedisClient) enqueue(ctx context.Context, queue string, obj stri
 
 // DequeueJob pops a job from the Redis jobQueue, using BRPOP.
 func (r *DefaultRedisClient) DequeueJob(ctx context.Context) (string, error) {
-	//TODO config timeout
 	res, err := r.client.BRPop(ctx, time.Second*30, r.jobQueue).Result()
 	if err != nil {
 		if err == redis.Nil {
@@ -73,7 +72,6 @@ func (r *DefaultRedisClient) DequeueJob(ctx context.Context) (string, error) {
 		return "", err
 	}
 	telemetry.Logger.Info("Job dequeued from Redis", zap.String("queue", r.jobQueue))
-	//TODO check on this usage of BRPOP result
 	return res[1], nil
 }
 

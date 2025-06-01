@@ -1,0 +1,26 @@
+FROM alpine:3.21.3
+
+# Install CA certificates and any other dependencies
+RUN apk --no-cache add ca-certificates tzdata ffmpeg
+
+# Create a non-root user to run the application
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+# Create app directory and set ownership
+WORKDIR /app
+
+# Copy the binary from the build context
+COPY transcodeflow /app/
+
+# Set proper permissions
+RUN chmod +x /app/transcodeflow && \
+    chown -R appuser:appgroup /app
+
+# Switch to the non-root user
+USER appuser
+
+#Set mode and port
+ENV MODE=worker
+
+# Set the entry point
+ENTRYPOINT ["/app/transcodeflow"]

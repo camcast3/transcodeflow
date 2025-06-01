@@ -77,6 +77,24 @@ func (_m *RedisClient) EnqueueJob(ctx context.Context, job string) error {
 	return r0
 }
 
+// EnqueueJobResult provides a mock function with given fields: ctx, jobResult
+func (_m *RedisClient) EnqueueJobResult(ctx context.Context, jobResult string) error {
+	ret := _m.Called(ctx, jobResult)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EnqueueJobResult")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, jobResult)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // NewRedisClient creates a new instance of RedisClient. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewRedisClient(t interface {

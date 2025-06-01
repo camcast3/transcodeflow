@@ -128,3 +128,11 @@ func testMissingRequiredFields(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "Expected bad request for missing fields")
 }
+
+func TestWorkerDequeue(t *testing.T) {
+	os.Setenv("APP_MODE", "worker")
+	defer os.Unsetenv("APP_MODE")
+
+	go main()
+	time.Sleep(time.Second * 10)
+}

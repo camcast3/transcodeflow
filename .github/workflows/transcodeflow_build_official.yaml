@@ -86,12 +86,7 @@ jobs:
       - name: Build the binary
         run: |
           go mod download
-          go build -o transcodeflow cmd/transcodeflow/main.go
-
-      - name: Build the binary
-        run: |
-          go mod download
-          go build -o transcodeflow cmd/transcodeflow/main.go
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o transcodeflow cmd/transcodeflow/main.go
 
       - name: Determine version bump
         id: bump-type

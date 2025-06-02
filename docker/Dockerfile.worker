@@ -28,8 +28,8 @@ RUN chmod +x /app/transcodeflow && \
 # Switch to the non-root user
 USER appuser
 
-#Set mode and port
-ENV MODE=worker
+#Set app mode
+ENV APP_MODE=worker
 
-# Set the entry point
+# Set the entry point to go binary
 ENTRYPOINT ["/app/transcodeflow"]

@@ -145,48 +145,59 @@ func (s *Server) handleSubmitJob(w http.ResponseWriter, r *http.Request) {
 }
 
 func logJob(job model.Job) {
+	// Prepare safe values for potentially nil fields
+	inputContainerType := job.InputContainerType
+	outputContainerType := job.OutputContainerType
+	hardwareDevice := job.HardwareDevice
+
 	// Log job submission with appropriate fields based on job type
 	if job.IsAdvancedMode() {
 		// Advanced mode logging
 		telemetry.Logger.Info("Advanced job submitted successfully",
 			zap.String("input_file_path", job.InputFilePath),
 			zap.String("output_file_path", job.OutputFilePath),
-			zap.String("input_container_type", job.InputContainerType),
-			zap.String("output_container_type", job.OutputContainerType),
+			zap.String("input_container_type", inputContainerType),
+			zap.String("output_container_type", outputContainerType),
 			zap.Bool("dry_run", job.IsDryRun()),
 			zap.Bool("has_global_args", job.GlobalArguments != ""),
 			zap.Bool("has_input_args", job.InputArguments != ""),
 			zap.Bool("has_output_args", job.OutputArguments != ""),
-			zap.String("hardware_device", job.HardwareDevice),
+			zap.String("hardware_device", hardwareDevice),
 		)
 	} else {
 		// Simple options mode logging
 		var preset string
 		var hwAccel bool
 		var audioQuality string
+		var resolution string
+		var keepOriginalResolution bool
 
 		if job.SimpleOptions != nil {
 			preset = string(job.SimpleOptions.QualityPreset)
 			hwAccel = job.SimpleOptions.UseHardwareAcceleration
 			audioQuality = job.SimpleOptions.AudioQuality
+			resolution = job.SimpleOptions.Resolution
+			keepOriginalResolution = job.SimpleOptions.KeepOriginalResolution
 		} else {
 			preset = string(model.DefaultQualityPreset)
 			hwAccel = false
 			audioQuality = "medium"
+			resolution = ""
+			keepOriginalResolution = false
 		}
 
 		telemetry.Logger.Info("Simple job submitted successfully",
 			zap.String("input_file_path", job.InputFilePath),
 			zap.String("output_file_path", job.OutputFilePath),
-			zap.String("input_container_type", job.InputContainerType),
-			zap.String("output_container_type", job.OutputContainerType),
+			zap.String("input_container_type", inputContainerType),
+			zap.String("output_container_type", outputContainerType),
 			zap.Bool("dry_run", job.IsDryRun()),
 			zap.String("quality_preset", preset),
 			zap.Bool("hardware_acceleration", hwAccel),
 			zap.String("audio_quality", audioQuality),
-			zap.String("resolution", job.SimpleOptions.Resolution),
-			zap.Bool("keep_original_resolution", job.SimpleOptions.KeepOriginalResolution),
-			zap.String("hardware_device", job.HardwareDevice),
+			zap.String("resolution", resolution),
+			zap.Bool("keep_original_resolution", keepOriginalResolution),
+			zap.String("hardware_device", hardwareDevice),
 		)
 	}
 }

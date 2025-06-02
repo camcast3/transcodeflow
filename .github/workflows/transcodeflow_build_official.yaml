@@ -253,7 +253,7 @@ jobs:
           flavor: |
             latest=true
           labels: |
-            org.opencontainers.image.authors= AlliumApotheosis
+            org.opencontainers.image.authors=AlliumApotheosis
             org.opencontainers.image.source="https://github.com/camcast3/transcodeflow"
             org.opencontainers.image.description="A worker service for processing video transcoding jobs"
             org.opencontainers.image.licenses="MIT"

@@ -5,7 +5,7 @@ RUN apk --no-cache add ca-certificates tzdata
 
 # Download and install jellyfin-ffmpeg from the generic Linux portable archive
 RUN apk --no-cache add tar xz && \
-    wget -qO- https://repo.jellyfin.org/files/ffmpeg/jellyfin-ffmpeg_6.0-1-portable_linux64-gpl.tar.xz | \
+    wget -qO- https://repo.jellyfin.org/files/ffmpeg/linux/latest-7.x/amd64/jellyfin-ffmpeg_7.1.1-4_portable_linux64-gpl.tar.xz | \
     tar xJf - -C /usr/local && \
     ln -sf /usr/local/jellyfin-ffmpeg/ffmpeg /usr/local/bin/ffmpeg && \
     ln -sf /usr/local/jellyfin-ffmpeg/ffprobe /usr/local/bin/ffprobe

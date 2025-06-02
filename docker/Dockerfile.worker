@@ -4,9 +4,11 @@ FROM alpine:3.21.3
 RUN apk --no-cache add ca-certificates tzdata
 
 # Download and install jellyfin-ffmpeg from the generic Linux portable archive
-RUN apk --no-cache add tar xz && \
-    wget -qO- https://repo.jellyfin.org/files/ffmpeg/linux/latest-7.x/amd64/jellyfin-ffmpeg_7.1.1-4_portable_linux64-gpl.tar.xz | \
-    tar xJf - -C /usr/local && \
+RUN apk --no-cache add tar xz wget && \
+    wget -q https://repo.jellyfin.org/files/ffmpeg/linux/latest-7.x/amd64/jellyfin-ffmpeg_7.1.1-4_portable_linux64-gpl.tar.xz -O /tmp/jellyfin-ffmpeg.tar.xz && \
+    echo "ecf5559d891820f9d9e8b9adb82b9c5b  /tmp/jellyfin-ffmpeg.tar.xz" | md5sum -c && \
+    tar xJf /tmp/jellyfin-ffmpeg.tar.xz -C /usr/local && \
+    rm /tmp/jellyfin-ffmpeg.tar.xz && \
     ln -sf /usr/local/jellyfin-ffmpeg/ffmpeg /usr/local/bin/ffmpeg && \
     ln -sf /usr/local/jellyfin-ffmpeg/ffprobe /usr/local/bin/ffprobe
 
